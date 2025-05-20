@@ -128,6 +128,53 @@ export default class CopilotPlugin extends Plugin {
 
 		this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 		this.activateView();
+
+		// --- Copilot Edit Mode Command ---
+		this.addCommand({
+			id: "copilot-edit-selection",
+			name: "Copilot: Edit Selection",
+			editorCallback: async (editor, view) => {
+				const selectedText = editor.getSelection();
+				if (!selectedText) {
+					new Notice("No text selected.");
+					return;
+				}
+				const instruction = await (this.app as any).prompt?.("Describe the edit you want Copilot to make:");
+				if (!instruction) return;
+				try {
+					const editedText = await this.copilotAgent.getClient().customEdit(selectedText, instruction);
+					if (editedText) editor.replaceSelection(editedText);
+					else new Notice("Copilot did not return an edit.");
+				} catch (e) {
+					new Notice("Copilot edit failed.");
+				}
+			}
+		});
+
+		// --- Copilot Agent Mode Command ---
+		this.addCommand({
+			id: "copilot-agent-action",
+			name: "Copilot: Agent Action",
+			callback: async () => {
+				const instruction = await (this.app as any).prompt?.("What would you like Copilot to do?");
+				if (!instruction) return;
+				try {
+					const agentResponse = await this.copilotAgent.getClient().customAgent(instruction);
+					// Example: handle create_note and run_command actions
+					if (agentResponse?.action === "create_note") {
+						await this.app.vault.create(agentResponse.title + ".md", agentResponse.content || "");
+						new Notice(`Note '${agentResponse.title}' created.`);
+					} else if (agentResponse?.action === "run_command") {
+						this.app.commands.executeCommandById(agentResponse.commandId);
+						new Notice(`Command '${agentResponse.commandId}' executed.`);
+					} else {
+						new Notice("Copilot agent did not return a recognized action.");
+					}
+				} catch (e) {
+					new Notice("Copilot agent action failed.");
+				}
+			}
+		});
 	}
 
 	onunload() {

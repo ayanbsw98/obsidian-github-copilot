@@ -165,6 +165,36 @@ class Client {
 		}
 	}
 
+	// Custom edit endpoint for Copilot Edit Mode
+	public async customEdit(selectedText: string, instruction: string): Promise<string | null> {
+		try {
+			// TODO: Replace with actual Copilot edit API call
+			// For now, just echo the instruction and text
+			return `/* Copilot Edit: ${instruction} */\n${selectedText}`;
+		} catch (e) {
+			Logger.getInstance().error("Error in customEdit: " + e);
+			return null;
+		}
+	}
+
+	// Custom agent endpoint for Copilot Agent Mode
+	public async customAgent(instruction: string): Promise<any> {
+		try {
+			// TODO: Replace with actual Copilot agent API call
+			// For now, just return a mock action
+			if (instruction.toLowerCase().includes("note")) {
+				return { action: "create_note", title: "Copilot Note", content: `Created by Copilot: ${instruction}` };
+			}
+			if (instruction.toLowerCase().includes("command")) {
+				return { action: "run_command", commandId: "editor:toggle-bold" };
+			}
+			return { action: "none" };
+		} catch (e) {
+			Logger.getInstance().error("Error in customAgent: " + e);
+			return null;
+		}
+	}
+
 	public dispose(): void {
 		this.client.exit();
 	}
