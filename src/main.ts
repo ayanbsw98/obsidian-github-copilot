@@ -165,8 +165,14 @@ export default class CopilotPlugin extends Plugin {
 						await this.app.vault.create(agentResponse.title + ".md", agentResponse.content || "");
 						new Notice(`Note '${agentResponse.title}' created.`);
 					} else if (agentResponse?.action === "run_command") {
-						this.app.commands.executeCommandById(agentResponse.commandId);
-						new Notice(`Command '${agentResponse.commandId}' executed.`);
+						// Use the Obsidian API to execute a command
+						const commandManager = (this.app as any).commands;
+						if (commandManager && typeof commandManager.executeCommandById === "function") {
+							commandManager.executeCommandById(agentResponse.commandId);
+							new Notice(`Command '${agentResponse.commandId}' executed.`);
+						} else {
+							new Notice(`Command manager not available or command '${agentResponse.commandId}' not found.`);
+						}
 					} else {
 						new Notice("Copilot agent did not return a recognized action.");
 					}

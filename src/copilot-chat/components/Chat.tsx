@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
 import NoHistory from "./sections/NoHistory";
 import Header from "./sections/Header";
@@ -19,6 +19,8 @@ const Chat: React.FC = () => {
 		activeConversationId,
 		initConversationService,
 	} = useCopilotStore();
+
+	const [mode, setMode] = useState<"chat" | "edit">("chat");
 
 	useEffect(() => {
 		if (plugin) {
@@ -42,13 +44,13 @@ const Chat: React.FC = () => {
 
 	return (
 		<MainLayout>
-			<Header />
+			<Header mode={mode} setMode={setMode} />
 			{formattedMessages.length === 0 ? (
 				<NoHistory />
 			) : (
 				<MessageList messages={formattedMessages} />
 			)}
-			<Input isLoading={isLoading} />
+			<Input isLoading={isLoading} mode={mode} />
 		</MainLayout>
 	);
 };

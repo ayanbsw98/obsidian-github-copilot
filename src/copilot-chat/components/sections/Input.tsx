@@ -10,6 +10,7 @@ const BASE_CLASSNAME = "copilot-chat-input";
 
 interface InputProps {
 	isLoading?: boolean;
+	mode: "chat" | "edit";
 }
 
 interface CursorPosition {
@@ -17,7 +18,7 @@ interface CursorPosition {
 	end: number;
 }
 
-const Input: React.FC<InputProps> = ({ isLoading = false }) => {
+const Input: React.FC<InputProps> = ({ isLoading = false, mode }) => {
 	const [message, setMessage] = useState("");
 	const plugin = usePlugin();
 	const { sendMessage, isAuthenticated } = useCopilotStore();
@@ -28,10 +29,15 @@ const Input: React.FC<InputProps> = ({ isLoading = false }) => {
 	});
 	const [showFileSuggestion, setShowFileSuggestion] = useState(false);
 	const [fileSearchQuery, setFileSearchQuery] = useState("");
-	const [dropdownPosition] = useState({
-		top: 0,
-		left: 0,
-	});
+	const [dropdownPosition] = useState({ top: 0, left: 0 });
+
+	// Edit mode state
+	const [editInstruction, setEditInstruction] = useState("");
+	const [selectedFile, setSelectedFile] = useState<string>("");
+	const [editStatus, setEditStatus] = useState<string>("");
+	const [isEditing, setIsEditing] = useState(false);
+
+	const markdownFiles = plugin?.app?.vault?.getMarkdownFiles?.() || [];
 
 	const updateCursorPosition = () => {
 		if (!textareaRef.current) return;
@@ -225,6 +231,101 @@ const Input: React.FC<InputProps> = ({ isLoading = false }) => {
 			}
 		};
 	}, []);
+
+	const handleApplyEdit = async () => {
+		if (!plugin || !selectedFile || !editInstruction) {
+			setEditStatus("Please select a note and enter an instruction.");
+			return;
+		}
+		if (!plugin.copilotAgent || typeof plugin.copilotAgent.getClient !== "function") {
+			setEditStatus("Copilot is not ready yet! Please check your settings and make sure you are signed in.");
+			return;
+		}
+		const client = plugin.copilotAgent.getClient();
+		if (!client || typeof client.customEdit !== "function") {
+			setEditStatus("Copilot client is not ready yet! Please check your settings and make sure you are signed in.");
+			return;
+		}
+		setIsEditing(true);
+		setEditStatus("");
+		try {
+			const file = markdownFiles.find((f) => f.path === selectedFile);
+			if (!file) {
+				setEditStatus("File not found.");
+				setIsEditing(false);
+				return;
+			}
+			const original = await plugin.app.vault.read(file);
+			const edited = await client.customEdit(original, editInstruction);
+			if (edited && edited !== original) {
+				await plugin.app.vault.modify(file, edited);
+				setEditStatus("Edit applied!");
+				setEditInstruction("");
+			} else {
+				setEditStatus("No changes suggested.");
+			}
+		} catch (e) {
+			setEditStatus("Edit failed: " + (e?.message || e));
+		} finally {
+			setIsEditing(false);
+		}
+	};
+
+	if (mode === "edit") {
+		return (
+			<div className={concat(BASE_CLASSNAME, "edit-mode-container")}>
+				<label>
+					Select note:
+					<select
+						value={selectedFile}
+						onChange={(e) => setSelectedFile(e.target.value)}
+						className={concat(BASE_CLASSNAME, "edit-note-selector")}
+					>
+						<option value="">-- Choose a note --</option>
+						{markdownFiles.map((f) => (
+							<option key={f.path} value={f.path}>
+								{f.basename}
+							</option>
+						))}
+					</select>
+				</label>
+				<label style={{ display: "block", marginTop: 8 }}>
+					Edit instruction:
+					<textarea
+						value={editInstruction}
+						onChange={(e) => setEditInstruction(e.target.value)}
+						rows={3}
+						className={concat(
+							BASE_CLASSNAME,
+							"edit-instruction-input",
+						)}
+						placeholder="E.g. Summarize, fix grammar, rephrase, etc."
+						style={{ width: "100%" }}
+					/>
+				</label>
+				<button
+					className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
+					onClick={handleApplyEdit}
+					disabled={isEditing || !selectedFile || !editInstruction}
+					style={{ marginTop: 8 }}
+				>
+					{isEditing ? "Applying..." : "Apply Edit"}
+				</button>
+				{editStatus && (
+					<div
+						style={{
+							marginTop: 8,
+							color: editStatus.includes("fail")
+								? "var(--text-error)"
+								: "var(--text-normal)",
+						}}
+					>
+						{editStatus}
+					</div>
+				)}
+			</div>
+		);
+	}
 
 	return (
 		<div className={concat(BASE_CLASSNAME, "container")}>

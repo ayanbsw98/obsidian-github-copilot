@@ -6,7 +6,12 @@ import ConversationSelector from "./ConversationSelector";
 
 const BASE_CLASSNAME = "copilot-chat-header";
 
-const Header: React.FC = () => {
+interface HeaderProps {
+	mode: "chat" | "edit";
+	setMode: (mode: "chat" | "edit") => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ mode, setMode }) => {
 	const plugin = usePlugin();
 	const {
 		clearMessages,
@@ -44,6 +49,20 @@ const Header: React.FC = () => {
 	return (
 		<div className={concat(BASE_CLASSNAME, "container")}>
 			<div className={concat(BASE_CLASSNAME, "title")}>Chat</div>
+			<div className={concat(BASE_CLASSNAME, "mode-toggle")}>
+				<button
+					className={mode === "chat" ? "mod-cta" : ""}
+					onClick={() => setMode("chat")}
+				>
+					Chat
+				</button>
+				<button
+					className={mode === "edit" ? "mod-cta" : ""}
+					onClick={() => setMode("edit")}
+				>
+					Edit
+				</button>
+			</div>
 			<div className={concat(BASE_CLASSNAME, "actions")}>
 				<button
 					className={concat(BASE_CLASSNAME, "action-button")}
