@@ -230,22 +230,20 @@ const Input: React.FC<InputProps> = ({ isLoading = false, mode }) => {
 				);
 			}
 		};
-	}, []);
-
-	const handleApplyEdit = async () => {
+	}, []);	const handleApplyEdit = async () => {
 		if (!plugin || !selectedFile || !editInstruction) {
 			setEditStatus("Please select a note and enter an instruction.");
 			return;
 		}
-		if (!plugin.copilotAgent || typeof plugin.copilotAgent.getClient !== "function") {
-			setEditStatus("Copilot is not ready yet! Please check your settings and make sure you are signed in.");
+		
+		// Run diagnostic check
+		const diagnosis = diagnoseCopilotIssues();
+		if (diagnosis !== "Copilot appears to be ready") {
+			setEditStatus(`⚠️ ${diagnosis}`);
 			return;
 		}
+		
 		const client = plugin.copilotAgent.getClient();
-		if (!client || typeof client.customEdit !== "function") {
-			setEditStatus("Copilot client is not ready yet! Please check your settings and make sure you are signed in.");
-			return;
-		}
 		setIsEditing(true);
 		setEditStatus("");
 		try {
@@ -269,6 +267,34 @@ const Input: React.FC<InputProps> = ({ isLoading = false, mode }) => {
 		} finally {
 			setIsEditing(false);
 		}
+	};
+
+	// Helper function to diagnose Copilot readiness issues
+	const diagnoseCopilotIssues = (): string => {
+		if (!plugin) return "Plugin not loaded";
+		
+		if (!plugin.settings.enabled) {
+			return "GitHub Copilot is disabled. Enable it in Settings → GitHub Copilot.";
+		}
+		
+		if (!plugin.settings.nodePath || plugin.settings.nodePath === "default") {
+			return "Node.js path not configured. Set your Node.js path (requires Node 20+) in Settings → GitHub Copilot.";
+		}
+		
+		if (!plugin.copilotAgent) {
+			return "Copilot agent not initialized. Restart Obsidian or check settings.";
+		}
+		
+		const client = plugin.copilotAgent.getClient();
+		if (!client) {
+			return "Copilot client not ready. Check Node.js path and restart plugin.";
+		}
+		
+		if (typeof client.customEdit !== "function") {
+			return "Edit functionality not available. Plugin may need updating.";
+		}
+		
+		return "Copilot appears to be ready";
 	};
 
 	if (mode === "edit") {
@@ -302,14 +328,25 @@ const Input: React.FC<InputProps> = ({ isLoading = false, mode }) => {
 						placeholder="E.g. Summarize, fix grammar, rephrase, etc."
 						style={{ width: "100%" }}
 					/>
-				</label>
-				<button
+				</label>				<button
 					className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
 					onClick={handleApplyEdit}
 					disabled={isEditing || !selectedFile || !editInstruction}
-					style={{ marginTop: 8 }}
+					style={{ marginTop: 8, marginRight: 8 }}
 				>
 					{isEditing ? "Applying..." : "Apply Edit"}
+				</button>
+				<button
+					className={concat(BASE_CLASSNAME, "button")}
+					onClick={() => {
+						const diagnosis = diagnoseCopilotIssues();
+						setEditStatus(diagnosis === "Copilot appears to be ready" 
+							? "✅ Copilot is ready for editing!" 
+							: `⚠️ ${diagnosis}`);
+					}}
+					style={{ marginTop: 8 }}
+				>
+					Test Connection
 				</button>
 				{editStatus && (
 					<div
